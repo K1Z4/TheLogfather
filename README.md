@@ -61,18 +61,19 @@ const app = express();
 
 // Example with basic authentication middleware
 app.use('/logs', (req, res, next) => {
-  // Add your authentication logic here
-  // Example: Check for valid session, API key, or JWT token
-  if (!req.headers.authorization) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  next();
+    // Add your authentication logic here
+    // Example: Check for valid session, API key, or JWT token
+    if (!req.headers.authorization) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+    next();
 }, logfatherPlugin({
-  logPaths: ['/path/to/your/logs/']
+    express: express,
+    logPaths: ['/path/to/your/logs/']
 }));
 
 app.listen(3000, () => {
-  console.log('The Logfather is ready: http://localhost:3000/logs');
+    console.log('The Logfather is ready: http://localhost:3000/logs');
 });
 ```
 
@@ -81,6 +82,7 @@ app.listen(3000, () => {
 ```javascript
 // 🔒 SECURITY: ALWAYS add authentication middleware before The Logfather
 app.use('/logs', authenticateUser, logfatherPlugin({
+  express: express,                 // Required: An instance of Express
   logPaths: ['/path/to/logs/'],     // Required: Array of log directory paths
   pageSize: 100,                   // Optional: Results per page (default: 100)
   logger: console                  // Optional: Logger instance (default: console)
@@ -114,34 +116,6 @@ app.use('/logs', authenticateUser, logfatherPlugin({
   logger: logger
 }));
 ```
-
-## ES6 Module Support
-
-The Logfather is built with modern ES6 modules throughout:
-
-```javascript
-// package.json includes "type": "module"
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import logfatherPlugin from 'the-logfather';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-```
-
-### Module Structure
-```
-├── index.js                 # ES6 default export
-├── lib/                     # Functional ES6 modules
-│   ├── fileReader.js        # Named exports
-│   ├── logParser.js         # Named exports
-│   └── searchEngine.js      # Named exports
-└── routes/                  # Express route modules
-    ├── api.js              # Default export
-    └── ui.js               # Default export
-```
-
 ## Log File Structure
 
 The Logfather expects a specific file naming pattern:
@@ -168,16 +142,6 @@ Once mounted, The Logfather provides these endpoints:
 
 ### Web Interface
 - `GET /logs` - Main log viewer interface
-
-### REST API
-- `GET /logs/api/logs` - Search and retrieve log entries
-- `POST /logs/api/refresh` - Refresh logs from files
-- `GET /logs/api/stats` - Get indexing statistics
-- `GET /logs/api/files` - List available log files
-- `GET /logs/api/entry/:id` - Get specific log entry details
-
-### Health & Status
-- `GET /logs/health` - Service health check
 
 ## Search Query Examples
 
@@ -213,53 +177,6 @@ Once mounted, The Logfather provides these endpoints:
 - Collapsible columns on small screens
 - Touch-friendly controls
 
-## Example Usage
-
-```javascript
-// Basic setup with ES6 modules
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import logfatherPlugin from 'the-logfather';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const app = express();
-
-// 🔒 SECURITY: Authentication middleware (REQUIRED for production)
-const authenticateUser = (req, res, next) => {
-  // Implement your authentication logic here
-  // Example: Check JWT token, session, or API key
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  
-  if (!token || !isValidToken(token)) {
-    return res.status(401).json({ 
-      error: 'Authentication required',
-      message: 'Valid authorization token required to access logs'
-    });
-  }
-  
-  next();
-};
-
-// Configure The Logfather with authentication
-app.use('/logs', authenticateUser, logfatherPlugin({
-  logPaths: [
-    path.join(__dirname, 'logs'),
-    '/var/log/myapp'
-  ],
-  pageSize: 50,
-  logger: console // You can replace this with your own logger
-}));
-
-// Your existing routes
-app.get('/', (req, res) => {
-  res.send('App is running. View logs at <a href="/logs">/logs</a>');
-});
-
-app.listen(3000);
-```
-
 ## Performance Considerations
 
 - **Memory Usage**: Logs are indexed in memory for fast searching
@@ -272,82 +189,7 @@ app.listen(3000);
 - **Express**: 4.x or higher
 - **ES6 Environment**: Requires `"type": "module"` in package.json
 
-## Security Notes
-
-⚠️ **CRITICAL**: The Logfather provides read-only access to your log files, which may contain sensitive information like passwords, API keys, user data, and system details.
-
-### 🔒 **MANDATORY Security Requirements**
-
-**1. Authentication Protection:**
-```javascript
-// ALWAYS protect The Logfather routes with authentication
-app.use('/logs', authenticateUser, logfatherPlugin({
-  logPaths: ['/path/to/logs/']
-}));
-```
-
-**2. Network Security:**
-- Deploy behind a reverse proxy (nginx, Apache)
-- Use HTTPS in production
-- Restrict network access to authorized IPs
-- Consider VPN access for sensitive environments
-
-**3. Access Control:**
-- Implement role-based access control (RBAC)
-- Log all access attempts
-- Monitor for suspicious activity
-- Regular security audits
-
-**4. Data Protection:**
-- Be aware that log contents will be visible in the web interface
-- Consider log sanitization for sensitive data
-- Implement data retention policies
-- Encrypt sensitive log files at rest
-
-### 🚨 **Security Examples**
-
-**Basic Authentication:**
-```javascript
-app.use('/logs', (req, res, next) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token || !isValidToken(token)) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  next();
-}, logfatherPlugin({ logPaths: ['/path/to/logs/'] }));
-```
-
-**Session-based Authentication:**
-```javascript
-app.use('/logs', (req, res, next) => {
-  if (!req.session.user || !req.session.user.isAdmin) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-}, logfatherPlugin({ logPaths: ['/path/to/logs/'] }));
-```
-
-**API Key Authentication:**
-```javascript
-app.use('/logs', (req, res, next) => {
-  const apiKey = req.headers['x-api-key'];
-  if (!apiKey || !isValidApiKey(apiKey)) {
-    return res.status(401).json({ error: 'Valid API key required' });
-  }
-  next();
-}, logfatherPlugin({ logPaths: ['/path/to/logs/'] }));
-```
-
-## Contributing
-
-The Logfather is a family business. We welcome contributions that maintain the dignity and respect of the codebase.
-
 ## License
 
-MIT License - Because even the family believes in freedom.
+MIT License
 
----
-
-*"In this business, you keep your friends close, and your logs closer."*
-
-**The Logfather Development Team**

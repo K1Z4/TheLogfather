@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 4000;
 
 // The Logfather setup - pointing to our test logs
 app.use('/logs', logfatherPlugin({
+  express: express,
   logPaths: [
     path.join(__dirname, 'test-logs')
   ],

@@ -3,7 +3,6 @@
  * "We tail everything."
  */
 
-import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import apiRoutes from './routes/api.js';
@@ -22,20 +21,25 @@ const __dirname = path.dirname(__filename);
  */
 function createLogfatherMiddleware(options = {}) {
   const config = {
+    express: options.express,
     logPaths: options.logPaths || [],
     pageSize: options.pageSize || 100,
     logger: options.logger || console,
     ...options
   };
 
-  if (!config.logPaths || config.logPaths.length === 0) {
-    throw new Error('The Logfather requires at least one log path. You cannot escape the family.');
+  if (!config.express) {
+    throw new Error('options.express needs to be an Express instance.');
   }
 
-  const router = express.Router();
+  if (!config.logPaths || config.logPaths.length === 0) {
+    throw new Error('options.logPaths needs to be an array of log paths.');
+  }
+
+  const router = config.express.Router();
 
   // Serve static assets (CSS, JS, images)
-  router.use('/static', express.static(path.join(__dirname, 'public')));
+  router.use('/static', config.express.static(path.join(__dirname, 'public')));
 
   // API routes for log data
   router.use('/api', apiRoutes(config));
