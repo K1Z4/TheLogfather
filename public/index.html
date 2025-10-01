@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>The Logfather - "We tail everything"</title>
+    <link rel="stylesheet" href="/logs/static/style.css">
+    <script src="/logs/static/vue.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header and Filters Combined -->
+        <header class="logfather-header">
+            <div class="header-content">
+                <!-- Left side: Avatar and branding -->
+                <div class="avatar-section">
+                    <img src="/logs/static/avatar.png" alt="The Logfather" class="avatar">
+                    <div class="title-section">
+                        <h1 class="app-title">The Logfather</h1>
+                        <p class="tagline">"We tail everything"</p>
+                    </div>
+                </div>
+                
+                <!-- Right side: Status and filters -->
+                <div class="controls-section">
+                    <div class="status-row">
+                        <div class="status-indicator" :class="{ 'online': isOnline, 'offline': !isOnline }">
+                            {{ isOnline ? 'CONNECTED' : 'OFFLINE' }}
+                        </div>
+                        <button @click="refreshLogs" class="refresh-btn" :disabled="loading">
+                            {{ loading ? 'SCANNING...' : 'REFRESH' }}
+                        </button>
+                    </div>
+                    
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label>Level:</label>
+                            <select v-model="filters.level" @change="performSearch(1)" class="filter-select">
+                                <option value="">All Levels</option>
+                                <option value="debug">Debug</option>
+                                <option value="info">Info</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label>Start Date:</label>
+                            <input 
+                                type="datetime-local" 
+                                v-model="filters.startDate" 
+                                @change="performSearch(1)"
+                                class="filter-input"
+                            >
+                        </div>
+
+                        <div class="filter-group">
+                            <label>End Date:</label>
+                            <input 
+                                type="datetime-local" 
+                                v-model="filters.endDate" 
+                                @change="performSearch(1)"
+                                class="filter-input"
+                            >
+                        </div>
+
+                        <button @click="clearFilters" class="clear-filters-btn">CLEAR</button>
+                    </div>
+                    
+                    <!-- Stats moved under filters -->
+                    <div class="stats-row">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Entries:</span>
+                            <span class="stat-value">{{ stats.totalEntries || 0 }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Results Found:</span>
+                            <span class="stat-value">{{ searchResults.totalCount || 0 }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Last Scan:</span>
+                            <span class="stat-value">{{ formatDateTime(stats.lastIndexTime) }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Page:</span>
+                            <span class="stat-value">{{ currentPage }} of {{ totalPages }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search Bar (Full Width) -->
+        <section class="search-section">
+            <div class="search-container">
+                <div class="search-input-group">
+                    <input 
+                        type="text" 
+                        v-model="searchQuery" 
+                        @keyup.enter="performSearch(1)"
+                        @input="debouncedSearch"
+                        placeholder="Search the logs... What are you looking for?"
+                        class="search-input"
+                    >
+                    <button @click="performSearch(1)" class="search-btn" :disabled="loading">
+                        SEARCH
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+
+        <!-- Results Table -->
+        <section class="results-section">
+            <div class="results-container">
+                <div v-if="loading" class="loading-overlay">
+                    <div class="loading-message">The Logfather is working...</div>
+                </div>
+
+                <div v-if="!loading && logEntries.length === 0" class="no-results">
+                    <div class="no-results-message">
+                        <h3>Nothing to report, Don.</h3>
+                        <p>No logs match your search criteria.</p>
+                    </div>
+                </div>
+
+                <table v-if="!loading && logEntries.length > 0" class="log-table">
+                    <thead>
+                        <tr>
+                            <th @click="sortBy('timestamp')" class="sortable">
+                                Timestamp 
+                                <span v-if="sortField === 'timestamp'">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+                            </th>
+                            <th @click="sortBy('level')" class="sortable">
+                                Level
+                                <span v-if="sortField === 'level'">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+                            </th>
+                            <th>Message</th>
+                            <th @click="sortBy('sourceFile')" class="sortable">
+                                Source
+                                <span v-if="sortField === 'sourceFile'">{{ sortOrder === 'desc' ? '↓' : '↑' }}</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="entry in logEntries" :key="entry.id" class="log-row" :class="'level-' + entry.level">
+                            <td class="timestamp-cell">{{ formatDateTime(entry.timestamp) }}</td>
+                            <td class="level-cell">
+                                <span class="level-badge" :class="'level-' + entry.level">{{ entry.level.toUpperCase() }}</span>
+                            </td>
+                            <td class="message-cell">
+                                <div class="message-content" @click="toggleMessageExpand(entry.id)">
+                                    <span v-html="highlightSearch(entry.message)"></span>
+                                </div>
+                            </td>
+                            <td class="source-cell">{{ getFileName(entry.sourceFile) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                <div v-if="!loading && totalPages > 1" class="pagination">
+                    <button 
+                        @click="goToPage(currentPage - 1)" 
+                        :disabled="currentPage <= 1"
+                        class="pagination-btn"
+                    >
+                        PREVIOUS
+                    </button>
+                    
+                    <span class="pagination-info">
+                        Page {{ currentPage }} of {{ totalPages }}
+                    </span>
+                    
+                    <button 
+                        @click="goToPage(currentPage + 1)" 
+                        :disabled="currentPage >= totalPages"
+                        class="pagination-btn"
+                    >
+                        NEXT
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/logs/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "the-logfather",
+  "version": "1.0.0",
+  "description": "A powerful log viewer plugin for Express - \"We tail everything\"",
+  "main": "index.js",
+  "type": "module",
+  "keywords": ["log", "viewer", "express", "plugin", "middleware", "logfather"],
+  "author": "K1Z4",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/K1Z4/TheLogfather.git"
+  },
+  "scripts": {
+    "dev": "node --watch example.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
