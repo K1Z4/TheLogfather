@@ -1,6 +1,6 @@
 {
     "name": "the-logfather",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "A powerful log viewer plugin for Express - \"We tail everything\"",
     "main": "index.js",
     "type": "module",
